@@ -10,30 +10,19 @@ import (
 
 // Init expects a pointer to a config so we can fill the values using reflection.
 // args[0] is name of command (recomend including subcommand like: "git" + os.Args[1] -> git help)
-func Init(c interface{}, args []string) {
+func Init(c interface{}, args []string) flag.FlagSet {
 
-	flags := extract(os.Args[0], c)
+	if len(args) == 0 {
+		log.Fatalln("expected args with application name.")
+	}
+
+	flags := extract(args[0], c)
 	err := flags.Parse(args[1:])
 	if err != nil {
-		log.Printf("failed to set flags", err)
 		flags.Usage()
 	}
-}
-
-func extractEnv(s reflect.Value) {
-
-	typ := s.Type()
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		value := s.FieldByName(field.Name)
-
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
-		}
-
-		switch value.Kind() {
-		}
-	}
+	flags.VisitAll(extractEnv)
+	return flags
 }
 
 func extract(name string, c interface{}) flag.FlagSet {
@@ -58,6 +47,11 @@ func extractIntoFlagSet(c interface{}, flags *flag.FlagSet) {
 		name := strings.ToLower(field.Name)
 		usage := field.Tag.Get("usage")
 
+		if flag := flags.Lookup(name); flag != nil {
+			// if we try to set two flags with the same name it will panic
+			continue
+		}
+
 		switch ptr := addr.(type) {
 		case *int:
 			flags.IntVar(ptr, name, *ptr, usage)
@@ -69,10 +63,20 @@ func extractIntoFlagSet(c interface{}, flags *flag.FlagSet) {
 			flags.StringVar(ptr, name, *ptr, usage)
 		case *bool:
 			flags.BoolVar(ptr, name, *ptr, usage)
-		case *interface{}:
-			//extractIntoFlagSet(&(s.Field(i).Interface{}), flags)
+		case interface{}:
+			extractIntoFlagSet(ptr, flags)
 		default:
 			continue
 		}
 	}
+}
+
+// get flag value from env
+func extractEnv(f *flag.Flag) {
+	v := os.Getenv(f.Name)
+	if v == "" {
+		return
+	}
+
+	f.Value.Set(v)
 }
