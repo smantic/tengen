@@ -39,8 +39,10 @@ type Config5 struct {
 
 func main() {
 
+	helpstr := "available commands:\n\ttest subcommand\n\ttest embeded\n\ttest double-embeded\n\ttest duplicate-field\n\ttest nested\n"
+
 	if len(os.Args) == 1 {
-		fmt.Printf("available commands:\n\ttest subcommand\n\ttest embeded\n\ttest double-embeded\n\ttest duplicate-field\n\ttest nested\n")
+		fmt.Printf(helpstr)
 		return
 	}
 
@@ -73,7 +75,11 @@ func main() {
 		tengen.Init(&c, os.Args[1:])
 		fmt.Printf("%#v\n", c)
 	case "help":
-		fmt.Printf("helpful message :)")
+		c := Config1{}
+		os.Args[1] = "test"
+		fmt.Printf(helpstr)
+		flags := tengen.Init(&c, os.Args[1:])
+		flags.Usage()
 	default:
 	}
 }
